@@ -1,32 +1,76 @@
 use rand::Rng;
-use std::io;
+use std::{cmp::Ordering, io};
 
 fn main() {
     println!("🎮 Guess the number!");
+    println!("You have 7 attempts to guess a number between 1 and 100.");
     let secret_number = rand::thread_rng().gen_range(1..=100);
-    println!("The secret number is: {}", secret_number);
+    let mut remaining_attempts = 7;
+    let mut record: Vec<u32> = Vec::new();
 
     loop {
-        println!("\n Add your number: ");
-        let mut guess = String::new();
+        println!("📊 Remaining attempts: {}", remaining_attempts);
+        println!("Your previous attempts: {:?}", record);
+        println!("\nAdd a number: ");
+
+        let mut input = String::new();
         io::stdin()
-            .read_line(&mut guess)
+            .read_line(&mut input)
             .expect("Failed to read line");
-        let guess: u32 = match guess.trim().parse() {
-            Ok(num) => num,
+
+        let guess: u32 = match input.trim().parse() {
+            Ok(num) => {
+                if num < 1 || num > 100 {
+                    println!("❌ Please enter a number between 1 and 100!");
+                    continue;
+                }
+                num
+            }
             Err(_) => {
-                println!("Please enter a valid number!");
+                println!("❌ Please enter a valid number!");
                 continue;
             }
         };
 
+        if record.contains(&guess) {
+            println!(
+                "⚠️ You've already guessed {}! Try a different number.",
+                guess
+            );
+            continue;
+        }
+
+        record.push(guess);
+        remaining_attempts -= 1;
+
         match guess.cmp(&secret_number) {
-            std::cmp::Ordering::Less => println!("📉 Too small!"),
-            std::cmp::Ordering::Greater => println!("📈 Too big!"),
-            std::cmp::Ordering::Equal => {
-                println!("🎉 You win!");
-                break;
+            Ordering::Less => {
+                let difference = secret_number - guess;
+                if difference <= 5 {
+                    println!("🔥 Very close! Just a bit higher!");
+                } else {
+                    println!("📉 Too small!");
+                }
+            }
+            Ordering::Greater => {
+                let difference = guess - secret_number;
+                if difference <= 5 {
+                    println!("🔥 Very close! Just a bit lower!");
+                } else {
+                    println!("📈 Too big!");
+                }
+            }
+            Ordering::Equal => {
+                println!("🎉 You win! in {} attempts", 7 - remaining_attempts);
+                return;
             }
         };
+        if remaining_attempts == 0 {
+            println!(
+                "💥 You've run out of attempts! The number was {}. Better luck next time!",
+                secret_number
+            );
+            return;
+        }
     }
 }
