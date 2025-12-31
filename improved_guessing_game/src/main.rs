@@ -64,6 +64,22 @@ fn main() {
                 println!("🎉 You win! in {} attempts", 7 - remaining_attempts);
                 return;
             }
+enum ResultAttempt {
+    Correct,
+    TooSmall,
+    AlmostTooSmall,
+    TooBig,
+    AlmostTooBig,
+    OutOfRange,
+    AlreadyGuessed, // Repeat
+}
+
+enum Difficulty {
+    Easy,
+    Medium,
+    Hard,
+}
+
         };
         if remaining_attempts == 0 {
             println!(
