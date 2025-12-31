@@ -89,6 +89,17 @@ fn choose_difficulty() -> Difficulty {
     }
 }
 
+fn read_number() -> Option<u32> {
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .expect("Failed to read line");
+
+    match input.trim().parse() {
+        Ok(num) => Some(num),
+        Err(_) => {
+            println!("❌ Please enter a valid number!");
+            None
         }
     }
 }
