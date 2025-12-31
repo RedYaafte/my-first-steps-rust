@@ -71,6 +71,24 @@ fn main() {
                 secret_number
             );
             return;
+fn choose_difficulty() -> Difficulty {
+    println!("\nChoose the difficulty");
+    println!("1. Easy (1-50, 10 attempts)");
+    println!("2. Medium (1-100, 7 attempts)");
+    println!("3. Hard (1-200, 5 attempts)");
+
+    loop {
+        if let Some(option) = read_number() {
+            match option {
+                1 => return Difficulty::Easy,
+                2 => return Difficulty::Medium,
+                3 => return Difficulty::Hard,
+                _ => println!("❌ Please select a valid option (1, 2, or 3)!"),
+            }
+        }
+    }
+}
+
         }
     }
 }
