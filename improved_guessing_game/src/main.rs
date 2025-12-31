@@ -1,69 +1,96 @@
 use rand::Rng;
 use std::{cmp::Ordering, io};
 
-fn main() {
-    println!("🎮 Guess the number!");
-    println!("You have 7 attempts to guess a number between 1 and 100.");
-    let secret_number = rand::thread_rng().gen_range(1..=100);
-    let mut remaining_attempts = 7;
-    let mut record: Vec<u32> = Vec::new();
+struct Game {
+    secret_number: u32,
+    max_attempts: u32,
+    remaining_attempts: u32,
+    record: Vec<u32>,
+    min_range: u32,
+    max_range: u32,
+}
 
-    loop {
-        println!("📊 Remaining attempts: {}", remaining_attempts);
-        println!("Your previous attempts: {:?}", record);
-        println!("\nAdd a number: ");
-
-        let mut input = String::new();
-        io::stdin()
-            .read_line(&mut input)
-            .expect("Failed to read line");
-
-        let guess: u32 = match input.trim().parse() {
-            Ok(num) => {
-                if num < 1 || num > 100 {
-                    println!("❌ Please enter a number between 1 and 100!");
-                    continue;
-                }
-                num
-            }
-            Err(_) => {
-                println!("❌ Please enter a valid number!");
-                continue;
-            }
+impl Game {
+    fn new(difficulty: Difficulty) -> Self {
+        let (attempts, min, max) = match difficulty {
+            Difficulty::Easy => (10, 1, 50),
+            Difficulty::Medium => (7, 1, 100),
+            Difficulty::Hard => (5, 1, 200),
         };
 
-        if record.contains(&guess) {
-            println!(
-                "⚠️ You've already guessed {}! Try a different number.",
-                guess
-            );
-            continue;
+        Game {
+            secret_number: rand::thread_rng().gen_range(min..=max),
+            max_attempts: attempts,
+            remaining_attempts: attempts,
+            record: Vec::new(),
+            min_range: min,
+            max_range: max,
         }
+    }
 
-        record.push(guess);
-        remaining_attempts -= 1;
+    fn show_status(&self) {
+        println!("\n📊 Game status:");
+        println!(
+            "  Remaining attempts: {}/{}",
+            self.remaining_attempts, self.max_attempts
+        );
+        println!("  Range: {} - {}", self.min_range, self.max_range);
+        println!("  Your previous attempts: {:?}", self.record);
+    }
 
-        match guess.cmp(&secret_number) {
+    fn attempt(&mut self, guess: u32) -> ResultAttempt {
+        // Range validation
+        if guess < self.min_range || guess > self.max_range {
+            return ResultAttempt::OutOfRange;
+        };
+
+        // Repeat validation
+        if self.record.contains(&guess) {
+            return ResultAttempt::AlreadyGuessed;
+        };
+
+        // Record guess
+        self.record.push(guess);
+        self.remaining_attempts -= 1;
+
+        match guess.cmp(&self.secret_number) {
+            Ordering::Equal => ResultAttempt::Correct,
             Ordering::Less => {
-                let difference = secret_number - guess;
+                let difference = self.secret_number - guess;
                 if difference <= 5 {
-                    println!("🔥 Very close! Just a bit higher!");
+                    ResultAttempt::AlmostTooSmall
                 } else {
-                    println!("📉 Too small!");
+                    ResultAttempt::TooSmall
                 }
             }
             Ordering::Greater => {
-                let difference = guess - secret_number;
+                let difference = guess - self.secret_number;
                 if difference <= 5 {
-                    println!("🔥 Very close! Just a bit lower!");
+                    ResultAttempt::AlmostTooBig
                 } else {
-                    println!("📈 Too big!");
+                    ResultAttempt::TooBig
                 }
             }
-            Ordering::Equal => {
-                println!("🎉 You win! in {} attempts", 7 - remaining_attempts);
-                return;
-            }
+        }
+    }
+
+    fn lost(&self) -> bool {
+        self.remaining_attempts == 0
+    }
+
+    fn calculate_score(&self) -> u32 {
+        let attempts_used = self.max_attempts - self.remaining_attempts;
+        let base_points: u32 = 1000;
+        let penalty_for_attempt = 100;
+
+        if attempts_used == 0 {
+            return 0;
+        };
+
+        base_points.saturating_sub(attempts_used * penalty_for_attempt)
+    }
+}
+
 enum ResultAttempt {
     Correct,
     TooSmall,
@@ -80,13 +107,60 @@ enum Difficulty {
     Hard,
 }
 
+fn main() {
+    println!("🎮 Welcome to the Guessing Game!");
+
+    let difficulty = choose_difficulty();
+    let mut game = Game::new(difficulty);
+
+    println!(
+        "\n🎯 Guess the number between {} and {}",
+        game.min_range, game.max_range
+    );
+
+    loop {
+        game.show_status();
+
+        let guess = match read_number() {
+            Some(num) => num,
+            None => continue,
         };
-        if remaining_attempts == 0 {
+
+        let result = game.attempt(guess);
+
+        match result {
+            ResultAttempt::Correct => {
+                let points = game.calculate_score();
+                println!("\n🎉 CONGRATULATIONS! You guessed the number!");
+                println!("🏆 Your score: {} points", points);
+                break;
+            }
+            ResultAttempt::TooSmall => println!("📉 To small"),
+            ResultAttempt::AlmostTooSmall => println!("🔥 Almost too small!"),
+            ResultAttempt::TooBig => println!("📈 Too big"),
+            ResultAttempt::AlmostTooBig => println!("🔥 Almost too big!"),
+            ResultAttempt::OutOfRange => {
+                println!(
+                    "❌ Your guess is out of range! Please guess a number between {} and {}.",
+                    game.min_range, game.max_range
+                );
+                continue;
+            }
+            ResultAttempt::AlreadyGuessed => {
+                println!("❌ You've already guessed that number! Try a different one.");
+                continue;
+            }
+        }
+        if game.lost() {
             println!(
-                "💥 You've run out of attempts! The number was {}. Better luck next time!",
-                secret_number
+                "\n💀 You've run out of attempts! The secret number was {}.",
+                game.secret_number
             );
-            return;
+            break;
+        }
+    }
+}
+
 fn choose_difficulty() -> Difficulty {
     println!("\nChoose the difficulty");
     println!("1. Easy (1-50, 10 attempts)");
